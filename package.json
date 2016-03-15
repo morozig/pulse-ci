@@ -1,0 +1,32 @@
+{
+  "name": "pulse-ci",
+  "version": "0.0.1",
+  "description": "Zutubi Pulse Server remote API helper",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/morozig/pulse-ci.git"
+  },
+  "keywords": [
+    "zutubi",
+    "pulse",
+    "ci",
+    "RemoteApi",
+    "xmlrpc"
+  ],
+  "author": "morozig",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/morozig/pulse-ci/issues"
+  },
+  "homepage": "https://github.com/morozig/pulse-ci#readme",
+  "dependencies": {
+    "async": "^1.5.2",
+    "request": "^2.69.0",
+    "url-join": "0.0.1",
+    "xmlrpc": "^1.3.1"
+  }
+}
