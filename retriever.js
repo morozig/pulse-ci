@@ -3,6 +3,7 @@ var urlJoin = require('url-join');
 var request = require('request');
 var path = require('path');
 var fs = require('fs');
+var prettyBytes = require('pretty-bytes');
 
 exports.retrieve = (remoteApi, pulseUrl, getToken, updateToken) => {
     /**
@@ -16,7 +17,7 @@ exports.retrieve = (remoteApi, pulseUrl, getToken, updateToken) => {
             args: [options.project, options.build]
         }, (err, artifactInfos) => {
             if (err) callback(err);
-            async.each(artifactInfos, (artifactInfo, callback) => {
+            async.eachSeries(artifactInfos, (artifactInfo, callback) => {
                 remoteApi({
                     name: 'getArtifactFileListing',
                     args: [
@@ -63,10 +64,14 @@ exports.retrieve = (remoteApi, pulseUrl, getToken, updateToken) => {
                         if (err) callback(err);
                         makeRequest(token, callback);
                     });
-                } else stream.on('error', callback)
+                } else {
+                    size = prettyBytes(parseInt(size));
+                    console.log(fileName, size);
+                    stream.on('error', callback)
                     .on('end', callback)
                     .pipe(fs.createWriteStream(targetName))
                     .on('error', callback);
+                }
             });
         };
         getToken((err, token) => {
@@ -83,7 +88,7 @@ exports.retrieve = (remoteApi, pulseUrl, getToken, updateToken) => {
         var download = (url, callback) => {
             downloadTo(url, dir, callback);
         };
-        async.map(
+        async.mapSeries(
             options.artifacts,
             getArtifactUrls,
             (err, arrays) => {
