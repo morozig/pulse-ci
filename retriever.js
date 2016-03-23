@@ -2,16 +2,15 @@ var async = require('async');
 var urlJoin = require('url-join');
 var request = require('request');
 var path = require('path');
-var fs = require('fs');
+var fs = require('fs-extra');
 var prettyBytes = require('pretty-bytes');
+var ProgressBar = require('progress');
 
 exports.retrieve = (remoteApi, pulseUrl, getToken, updateToken) => {
     /**
-     * callback(err, [artifactUrl])
-     * @param {{project, build, name}} options
+     * @param {{project, build, name, dir, saveAs, consoleLog}} options
      */
-    var getArtifactUrls = (options, callback) => {
-        var artifactUrls = [];
+    var downloadArtifacts = (options, callback) => {
         remoteApi({
             name: 'getArtifactsInBuild',
             args: [options.project, options.build]
@@ -30,43 +29,60 @@ exports.retrieve = (remoteApi, pulseUrl, getToken, updateToken) => {
                     ]
                 }, (err, artifactFiles) => {
                     if (err) callback(err);
-                    artifactFiles.forEach((file) => {
+                    async.eachSeries(artifactFiles, (file, callback) => {
                         if (file.match(options.name)){
                             var artifactUrl = urlJoin(
                                 pulseUrl,
                                 artifactInfo.permalink,
                                 file.replace(/ /g, '%20')
                             );
-                            artifactUrls.push(artifactUrl);
-                        }
-                    });
-                    callback(null);
+                            options.file = file;
+                            options.url = artifactUrl;
+                            downloadTo(options, callback);
+                        } else callback(null);
+                    }, callback);
                 });
-            }, (err) => {
-                if (err) callback(err);
-                callback(null, artifactUrls);
-            });
+            }, callback);
         });
     };
-    var downloadTo = (url, dir, callback) => {
-        var fileName = url.split(/\//).pop().replace(/%20/g, ' ');
-        var targetName = path.join(dir, fileName);
-        var makeRequest = (token, callback) => {
+    /**
+     * @param {{url, file, name, dir, saveAs, consoleLog}} options
+     */
+    var downloadTo = (options, callback) => {
+        var targetName = options.file;
+        if (options.saveAs !== undefined){
+            targetName = options.file.replace(options.name, options.saveAs);
+        }
+        targetName = path.join(options.dir, targetName);
+        var makeRequest = (token, checkToken, callback) => {
             var stream = request.get({
-                url: url,
+                url: options.url,
                 proxy: '',
                 headers: {'PULSE_API_TOKEN': token}
-            })
+            });
             stream.on('response', (response) => {
                 var size = response.headers['content-length'];
-                if (size === undefined){
+                if (checkToken && size === undefined){
                     updateToken((err, token) => {
                         if (err) callback(err);
-                        makeRequest(token, callback);
+                        makeRequest(token, false, callback);
                     });
                 } else {
-                    size = prettyBytes(parseInt(size));
-                    console.log(fileName, size);
+                    if (options.consoleLog){
+                        size = parseInt(size);
+                        console.log(options.file, prettyBytes(size));
+                        var bar = new ProgressBar(
+                            '    downloading [:bar] :percent :etas', {
+                            complete: '=',
+                            incomplete: ' ',
+                            width: 20,
+                            total: size,
+                            clear: true
+                        });
+                        stream.on('data', (chunk) => {
+                            bar.tick(chunk.length);
+                        });
+                    }
                     stream.on('error', callback)
                     .on('end', callback)
                     .pipe(fs.createWriteStream(targetName))
@@ -76,27 +92,25 @@ exports.retrieve = (remoteApi, pulseUrl, getToken, updateToken) => {
         };
         getToken((err, token) => {
             if (err) callback(err);
-            makeRequest(token, callback);
+            fs.ensureFile(targetName, (err) => {
+                if (err) callback(err);
+                makeRequest(token, true, callback);
+            });
         });
     };
     /**
-     * @param {{artifacts:[{project, build, name}], dir}} options
+     * @param {{artifacts:[{project, build, name, saveAs}], dir, consoleLog}} options
      */
     var retrieve = (options, callback) => {
-        var artifactUrls = [];
         var dir = options.dir === undefined ? '.' : options.dir;
-        var download = (url, callback) => {
-            downloadTo(url, dir, callback);
-        };
-        async.mapSeries(
-            options.artifacts,
-            getArtifactUrls,
-            (err, arrays) => {
-                if (err) callback(err);
-                artifactUrls = [].concat.apply([], arrays);
-                async.eachSeries(artifactUrls, download, callback);
-            }
-        )
+        if (options.consoleLog === undefined){
+            options.consoleLog = true;
+        }
+        options.artifacts.forEach((artifactOptions) => {
+            if (artifactOptions.dir === undefined) artifactOptions.dir = dir;
+            artifactOptions.consoleLog = options.consoleLog;
+        });
+        async.eachSeries(options.artifacts, downloadArtifacts, callback);
     };
     return retrieve;
 };
