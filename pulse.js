@@ -8,7 +8,7 @@ const TOKEN_EXPIRED_FAULT_STRING = 'java.lang.Exception: com.zutubi.pulse.server
  * @param {{url, user, password}} options
  * @returns {Object}
  */
-exports.Pulse = (options) => {
+module.exports = (options) => {
     var client = xmlrpc.createClient(
         {
             url: urlJoin(options.url, 'xmlrpc')
@@ -66,8 +66,6 @@ exports.Pulse = (options) => {
             });
         } else client.methodCall(functionName, options.args, callback);
     };
-    var retrieve = retriever.retrieve(
-        remoteApi, options.url, getToken, updateToken
-    );
+    var retrieve = retriever(remoteApi, options.url, getToken, updateToken);
     return {remoteApi, retrieve};
 };

@@ -6,7 +6,7 @@ var fs = require('fs-extra');
 var prettyBytes = require('pretty-bytes');
 var ProgressBar = require('progress');
 
-exports.retrieve = (remoteApi, pulseUrl, getToken, updateToken) => {
+module.exports = (remoteApi, pulseUrl, getToken, updateToken) => {
     /**
      * @param {{project, build, name, dir, saveAs, consoleLog}} options
      */
