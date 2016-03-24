@@ -1,3 +1,3 @@
-var Pulse = require('./pulse.js').Pulse;
+var Pulse = require('./pulse.js');
 
-exports.Pulse = Pulse;
+module.exports = Pulse;
