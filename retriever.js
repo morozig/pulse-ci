@@ -3,8 +3,7 @@ var urlJoin = require('url-join');
 var request = require('request');
 var path = require('path');
 var fs = require('fs-extra');
-var prettyBytes = require('pretty-bytes');
-var ProgressBar = require('progress');
+var Logger = require('./logger.js');
 
 module.exports = (remoteApi, pulseUrl, getToken, updateToken) => {
     /**
@@ -51,7 +50,8 @@ module.exports = (remoteApi, pulseUrl, getToken, updateToken) => {
     var downloadTo = (options, callback) => {
         var targetName = options.file;
         if (options.saveAs !== undefined){
-            targetName = options.file.replace(options.name, options.saveAs);
+            var pattern = new RegExp(options.name);
+            targetName = options.file.replace(pattern, options.saveAs);
         }
         targetName = path.join(options.dir, targetName);
         var makeRequest = (token, checkToken, callback) => {
@@ -69,18 +69,11 @@ module.exports = (remoteApi, pulseUrl, getToken, updateToken) => {
                     });
                 } else {
                     if (options.consoleLog){
-                        size = parseInt(size);
-                        console.log(options.file, prettyBytes(size));
-                        var bar = new ProgressBar(
-                            '    downloading [:bar] :percent :etas', {
-                            complete: '=',
-                            incomplete: ' ',
-                            width: 20,
-                            total: size,
-                            clear: true
-                        });
-                        stream.on('data', (chunk) => {
-                            bar.tick(chunk.length);
+                        console.log(options.file);
+                        var logger = Logger(size);
+                        stream.on('data', logger.tick)
+                        .on('end', () => {
+                            logger.hide();
                         });
                     }
                     stream.on('error', callback)
