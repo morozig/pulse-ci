@@ -7,9 +7,43 @@ var Logger = require('./logger.js');
 
 module.exports = (remoteApi, pulseUrl, getToken, updateToken) => {
     /**
+     * @param {{project, build}} options
+     */
+    var getBuildNumber = (options, callback) => {
+        if (options.build !== undefined){
+            callback(null, options.build);
+        } else {
+            remoteApi({
+                name: 'getLatestBuildForProject',
+                args: [options.project, false]
+            }, (err, buildInfos) => {
+                if (err) callback(err);
+                var buildInfo = buildInfos[0];
+                async.whilst(
+                    () => !buildInfo.succeeded,
+                    (callback) => {
+                        remoteApi({
+                            name: 'getPreviousBuild',
+                            args: [options.project, buildInfo.id]
+                        }, (err, previousBuildInfos) => {
+                            if (err) callback(err);
+                            buildInfo = previousBuildInfos[0];
+                            callback(null);
+                        });
+                    },
+                    (err) => {
+                        if (err) callback(err);
+                        callback(null, buildInfo.id);
+                    }
+                );
+            });
+        }
+    };
+    
+    /**
      * @param {{project, build, name, dir, saveAs, consoleLog}} options
      */
-    var downloadArtifacts = (options, callback) => {
+    var downloadArtifactsFromSpecificBuild = (options, callback) => {
         remoteApi({
             name: 'getArtifactsInBuild',
             args: [options.project, options.build]
@@ -44,6 +78,18 @@ module.exports = (remoteApi, pulseUrl, getToken, updateToken) => {
             }, callback);
         });
     };
+
+    /**
+     * @param {{project, build, name, dir, saveAs, consoleLog}} options
+     */
+    var downloadArtifacts = (options, callback) => {
+        getBuildNumber(options, (err, buildNumber) => {
+            if (err) callback(err);
+            options.build = buildNumber;
+            downloadArtifactsFromSpecificBuild(options, callback);
+        });
+    };
+
     /**
      * @param {{url, file, name, dir, saveAs, consoleLog}} options
      */
