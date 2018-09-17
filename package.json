@@ -1,6 +1,6 @@
 {
   "name": "pulse-ci",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "Zutubi Pulse Server remote API helper",
   "main": "index.js",
   "scripts": {

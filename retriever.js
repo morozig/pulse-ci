@@ -63,7 +63,7 @@ module.exports = (remoteApi, pulseUrl, getToken, updateToken) => {
                 }, (err, artifactFiles) => {
                     if (err) callback(err);
                     async.eachSeries(artifactFiles, (file, callback) => {
-                        if (file.match(options.name)){
+                        if (file.match(options.name) &&(!options.stage || artifactInfo.stage == options.stage )){
                             var artifactUrl = urlJoin(
                                 pulseUrl,
                                 artifactInfo.permalink,
